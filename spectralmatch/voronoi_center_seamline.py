@@ -11,14 +11,29 @@ import fiona
 from itertools import combinations
 
 
-def voronoi_centerline_seamline(
+def voronoi_center_seamline(
     paths: List[str],
     mask_out: str,
     *,
     dist_min: float = 10,
     min_cut_length: float = 0,
-    debug: bool = False) -> None:
-    """Compute and write vector mask of segmented EMPs to `mask_out`."""
+    debug: bool = False,
+    image_field_name: str = 'image',
+    )-> None:
+    """
+    Generates a Voronoi-based seamline from the centers of edge-matching polygons (EMPs) and saves the result as a vector mask.
+
+    Args:
+        paths (List[str]): List of input EMP vector file paths.
+        mask_out (str): Output path for the generated seamline vector mask.
+        dist_min (float, optional): Minimum spacing between Voronoi points. Defaults to 10.
+        min_cut_length (float, optional): Minimum seamline segment length to retain. Defaults to 0.
+        debug (bool, optional): If True, enables debug output. Defaults to False.
+        image_field_name (str, optional): Field name for the output image. Defaults to 'image'.
+
+    Outputs:
+        Writes the seamline vector file to the specified output file.
+    """
 
     emps = []
     crs = None
@@ -52,11 +67,11 @@ def voronoi_centerline_seamline(
         if debug: print(f"EMP[{idx}] segmented result area: {seg.area:.2f}")
         segmented.append(seg)
 
-    schema = {'geometry': 'Polygon', 'properties': {'image': 'str'}}
+    schema = {'geometry': 'Polygon', 'properties': {image_field_name: 'str'}}
     with fiona.open(mask_out, 'w', driver='GPKG', crs=crs, schema=schema, layer='seamlines') as dst:
         for img, poly in zip(paths, segmented):
             if debug: print(f"Writing polygon for {os.path.basename(img)}: area={poly.area:.2f}")
-            dst.write({'geometry': mapping(poly), 'properties': {'image': os.path.basename(img)}})
+            dst.write({'geometry': mapping(poly), 'properties': {image_field_name: os.path.splitext(os.path.basename(img))[0]}})
 
 
 def _read_mask(
